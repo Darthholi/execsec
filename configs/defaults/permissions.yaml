@@ -322,7 +322,7 @@ allow:
 # DATA THEFT PREVENTION (Optional - enable with ENABLE_DATA_THEFT_PREVENTION)
 # ============================================================================
 data_theft_prevention:
-  enabled: false  # Set to true to enable
+  enabled: true
 
   # Sensitive file patterns that should never be read or transmitted
   sensitive_files:
@@ -359,6 +359,47 @@ data_theft_prevention:
     - domain: "transfer.sh"
       reason: "Temporary file sharing service"
       message: "❌ Access to file sharing services blocked"
+
+    - domain: "file.io"
+      reason: "Temporary file sharing service"
+      message: "❌ Access to file sharing services blocked"
+
+    - domain: "paste.ee"
+      reason: "Paste service for data exfiltration"
+      message: "❌ Access to paste services blocked"
+
+    - domain: "0x0.st"
+      reason: "Anonymous file sharing service"
+      message: "❌ Access to file sharing services blocked"
+
+    - domain: "ix.io"
+      reason: "Command-line paste service"
+      message: "❌ Access to paste services blocked"
+
+  # Encoding/transfer patterns for credential files
+  blocked_patterns:
+    - pattern: "base64:*.env"
+      reason: "Base64 encoding of secrets facilitates exfiltration"
+      message: "❌ Encoding of secret files blocked"
+      suggestion: "Reference secrets via environment variables, don't read files directly"
+
+    - pattern: "base64:*credentials*"
+      reason: "Base64 encoding of credentials facilitates exfiltration"
+      message: "❌ Encoding of credential files blocked"
+
+    - pattern: "base64:*_key.pem"
+      reason: "Base64 encoding of private keys facilitates exfiltration"
+      message: "❌ Encoding of private keys blocked"
+
+    - pattern: "scp:*.env"
+      reason: "Transferring secret files to remote hosts"
+      message: "❌ Transfer of secret files blocked"
+      suggestion: "Configure secrets on the target host directly"
+
+    - pattern: "rsync:*.ssh/*"
+      reason: "Syncing SSH keys to remote hosts"
+      message: "❌ Transfer of SSH keys blocked"
+      suggestion: "Generate new keys on the target host"
 
 # ============================================================================
 # CUSTOM RULES

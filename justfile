@@ -409,6 +409,35 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
     just run-maximum -- echo "Hello from maximum security"
 
 # ============================================================================
+# Hardening Commands
+# ============================================================================
+
+# Harden a target directory (auto-detect tool)
+@harden DIR=".":
+    echo -e "{{BLUE}}Hardening repository...{{NC}}"
+    {{tools_dir}}/harden/harden.sh {{DIR}}
+
+# Harden for Claude Code specifically
+@harden-claude DIR=".":
+    echo -e "{{BLUE}}Hardening for Claude Code...{{NC}}"
+    {{tools_dir}}/harden/harden.sh {{DIR}} --tool claude-code
+
+# Install all tool templates
+@harden-all DIR=".":
+    echo -e "{{BLUE}}Installing all tool templates...{{NC}}"
+    {{tools_dir}}/harden/harden.sh {{DIR}} --tool all --with-wrapper
+
+# Dry run (preview changes)
+@harden-dry DIR=".":
+    echo -e "{{BLUE}}Dry run (no changes)...{{NC}}"
+    {{tools_dir}}/harden/harden.sh {{DIR}} --dry-run
+
+# Run harden-specific tests
+@test-harden:
+    echo -e "{{BLUE}}Running hardening tests...{{NC}}"
+    {{tests_dir}}/test-harden.sh
+
+# ============================================================================
 # Utility Commands
 # ============================================================================
 

@@ -236,6 +236,82 @@ Enable with:
 export ENABLE_DATA_THEFT_PREVENTION=true
 ```
 
+## 🔒 Repo Hardening
+
+Harden any repository with security hooks for your AI coding tool. One command installs native hooks, git hooks, and audit logging.
+
+### Supported Tools
+
+| Tool | Hook Type | Auto-Detected |
+|------|-----------|---------------|
+| **Claude Code** | `PreToolUse` bash hook (exit 2 = block) | `.claude/` directory |
+| **OpenCode** | TypeScript plugin (`tool.execute.before`) | `opencode.json` |
+| **Cursor** | `beforeShellExecution` hook (JSON stdin/stdout) | `.cursor/` directory |
+| **Cline** | `PreToolUse` hook (JSON stdin/stdout) | `.clinerules/` |
+| **Windsurf** | VS Code deny list settings | `.windsurfrules` |
+| **Any tool** | Git hooks (pre-commit, pre-push) | `.git/` |
+| **Any tool** | Shell wrapper (`SHELL=guard.sh`) | Manual |
+
+### Quick Start
+
+```bash
+# Auto-detect your AI tool and harden
+./tools/harden/harden.sh /path/to/your/repo
+
+# Or use just commands
+just harden /path/to/your/repo
+
+# Preview what would be installed
+just harden-dry /path/to/your/repo
+
+# Install everything for all tools
+just harden-all /path/to/your/repo
+```
+
+### What Gets Installed
+
+**Tool-native hooks** (block dangerous commands before execution):
+- `rm -rf`, `sudo`, `chmod 777`, `dd`, `git push --force`
+- Data exfiltration: `curl *pastebin*`, `cat .env`, `base64 credentials`
+- Helpful blocking messages with safe alternatives
+
+**Git hooks** (universal, work with all tools):
+- `pre-commit`: Scans staged Python files for `os.system()`, `eval()`, `exec()`, `shell=True`
+- `pre-push`: Blocks force pushes to protected branches (main/master)
+
+**Audit logging**:
+- All commands logged to `~/.llmsec/logs/<project>_audit.log`
+- Both ALLOWED and BLOCKED commands recorded with timestamps
+
+### Interactive Wizard
+
+For Claude Code users, use the interactive wizard:
+
+```
+/harden-wizard
+```
+
+This walks you through: environment detection, tool selection, security level (basic/recommended/maximum), preview, and verification.
+
+### Examples
+
+```bash
+# Harden for Claude Code specifically
+./tools/harden/harden.sh ~/my-project --tool claude-code
+
+# Harden for Cursor
+./tools/harden/harden.sh ~/my-project --tool cursor
+
+# Git hooks only (works with any tool)
+./tools/harden/harden.sh ~/my-project --no-hooks
+
+# All tools + shell wrapper for maximum coverage
+./tools/harden/harden.sh ~/my-project --tool all --with-wrapper
+
+# Custom project name for audit logs
+./tools/harden/harden.sh ~/my-project --project my-app
+```
+
 ## 🔒 Security Guarantees
 
 **What We Prevent (with all layers enabled):**
