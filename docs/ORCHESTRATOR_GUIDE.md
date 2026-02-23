@@ -520,6 +520,59 @@ jobs:
 }
 ```
 
+## Using Interceptors as Validators
+
+All interceptors (`guard.sh`, `intercept.py`, `intercept-enhanced.py`) default to
+**check-only mode**: they validate a command and return exit 0 (allowed) or exit 1
+(blocked) without executing the command.
+
+This makes them composable pre-checks. A caller can validate first, then execute
+independently — no double-execution risk.
+
+```bash
+# Check-only (default) — validate, don't execute
+guard.sh -c "ls /tmp"              # → exit 0, no output
+guard.sh -c "rm -rf /"             # → exit 1, BLOCKED message
+
+python3 intercept.py "echo hello"  # → exit 0, no output
+python3 intercept.py "rm -rf /"    # → exit 1, BLOCKED message
+
+python3 intercept-enhanced.py "sudo whoami"  # → exit 1
+python3 intercept-enhanced.py "ls /tmp"      # → exit 0, no output
+```
+
+Use `--exec` (first argument) to check AND execute:
+
+```bash
+guard.sh --exec -c "echo hello"              # → exit 0, prints "hello"
+python3 intercept.py --exec "echo hello"     # → exit 0, prints "hello"
+python3 intercept-enhanced.py --exec "ls /"  # → exit 0, shows output
+```
+
+### Shell replacements
+
+Two wrappers always run in exec mode (for use as `$SHELL`):
+
+- `.llmsec/guard-exec.sh` — installed by harden-wizard, calls `guard.sh --exec`
+- `tools/interceptors/intercept-wrapper.sh` — calls `intercept-enhanced.py --exec`
+
+```bash
+# Direct AI tool use (checks + executes):
+SHELL=.llmsec/guard-exec.sh claude-code
+
+# Via secure-run.sh (uses intercept-wrapper.sh internally):
+./secure-run.sh
+```
+
+### ASK rules in check-only mode
+
+When an ASK-rule command is checked in check-only mode, the prompt is deferred:
+the interceptor logs `ALLOWED_ASK_DEFERRED` and exits 0. When the caller later
+runs the command with `--exec`, the prompt fires normally.
+
+This prevents the annoyance of double-prompts when using interceptors as
+pre-validators before execution.
+
 ## See Also
 
 - [Configuration Reference](CONFIG_REFERENCE.md)

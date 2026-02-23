@@ -162,10 +162,13 @@ def needs_confirmation(command: str) -> tuple[bool, str]:
 
 def log_command(command: str, status: str):
     """Log command to file."""
-    log_file = os.path.expanduser("~/.claude-intercept.log")
-    timestamp = datetime.now().isoformat()
-    with open(log_file, 'a') as f:
-        f.write(f"{timestamp} [{status}] {command}\n")
+    try:
+        log_file = os.path.expanduser("~/.claude-intercept.log")
+        timestamp = datetime.now().isoformat()
+        with open(log_file, 'a') as f:
+            f.write(f"{timestamp} [{status}] {command}\n")
+    except OSError:
+        pass  # Logging is best-effort; never block execution on log failure
 
 # ============================================
 # MAIN
@@ -173,10 +176,13 @@ def log_command(command: str, status: str):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: intercept.py <command>", file=sys.stderr)
+        print("Usage: intercept.py [--exec] <command>", file=sys.stderr)
         sys.exit(1)
 
-    command = ' '.join(sys.argv[1:])
+    # --exec flag: check AND execute. Default: check-only (validate, return 0/1, no execution).
+    exec_mode = '--exec' in sys.argv
+    args = [a for a in sys.argv[1:] if a != '--exec']
+    command = ' '.join(args)
 
     # Check system harm
     blocked, reason = is_blocked(command)
@@ -195,18 +201,24 @@ def main():
     # Check confirmation needed
     needs_confirm, what = needs_confirmation(command)
     if needs_confirm:
-        print(f"⚠️  Command requires confirmation: {what}", file=sys.stderr)
-        print(f"   Full command: {command}", file=sys.stderr)
-        response = input("   Execute? [y/N]: ").strip().lower()
-        if response != 'y':
-            print("   Cancelled.", file=sys.stderr)
-            log_command(command, "CANCELLED")
-            sys.exit(1)
+        if exec_mode:
+            print(f"⚠️  Command requires confirmation: {what}", file=sys.stderr)
+            print(f"   Full command: {command}", file=sys.stderr)
+            response = input("   Execute? [y/N]: ").strip().lower()
+            if response != 'y':
+                print("   Cancelled.", file=sys.stderr)
+                log_command(command, "CANCELLED")
+                sys.exit(1)
+        else:
+            # Check-only mode: treat ask rules as allowed — caller will prompt if needed
+            log_command(command, "ALLOWED_ASK_DEFERRED")
+            sys.exit(0)
 
-    # Execute
-    log_command(command, "EXECUTED")
-    result = subprocess.run(command, shell=True)
-    sys.exit(result.returncode)
+    log_command(command, "ALLOWED")
+    if exec_mode:
+        result = subprocess.run(command, shell=True)
+        sys.exit(result.returncode)
+    sys.exit(0)   # check-only: allowed, caller executes
 
 if __name__ == "__main__":
     main()

@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 # Universal shell wrapper for AI coding tools without native hooks
-# Usage: SHELL=/path/to/guard.sh <launch-ai-tool>
+# Usage: guard.sh [-c "cmd"] [--exec -c "cmd"]
 #
-# Intercepts $SHELL -c "command" invocations from AI tools.
-# Blocks dangerous commands, logs all activity, passes safe commands through.
+# Default (check-only): validates command, exits 0 (allowed) or 1 (blocked), does NOT execute.
+# With --exec:          validates AND executes the command if allowed.
+#
+# This makes guard.sh composable as a pre-check validator. Callers that need
+# execution (e.g. secure-run.sh $SHELL wrapper, harden-wizard guard-exec.sh) use --exec.
 #
 # Template variables:
 #   __PROJECT_NAME__ - replaced with project name during installation
 #   __REAL_SHELL__   - replaced with path to real shell (e.g., /bin/bash)
 
 REAL_SHELL="__REAL_SHELL__"
+
+# --- Flag parsing ---
+EXEC_MODE=false
+if [[ "${1:-}" == "--exec" ]]; then EXEC_MODE=true; shift; fi
 
 # --- Audit logging ---
 LOG_DIR="$HOME/.llmsec/logs"
@@ -88,4 +95,5 @@ fi
 
 # --- Command allowed ---
 log_entry "ALLOWED"
-exec "$REAL_SHELL" -c "$COMMAND"
+[[ "$EXEC_MODE" == "true" ]] && exec "$REAL_SHELL" -c "$COMMAND"
+exit 0   # check-only: allowed, caller executes

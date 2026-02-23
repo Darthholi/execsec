@@ -195,9 +195,13 @@ def log_command(command: str, status: str, reason: str = ""):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: intercept-enhanced.py <command>", file=sys.stderr)
+        print("Usage: intercept-enhanced.py [--exec] <command>", file=sys.stderr)
         sys.exit(1)
 
+    # --exec flag: check AND execute. Default: check-only (validate, return 0/1, no execution).
+    exec_mode = len(sys.argv) > 1 and sys.argv[1] == '--exec'
+    if exec_mode:
+        sys.argv = [sys.argv[0]] + sys.argv[2:]
     command = ' '.join(sys.argv[1:])
 
     # Load configuration
@@ -222,6 +226,10 @@ def main():
     ask_rule = find_matching_rule(command, ask_rules)
 
     if ask_rule:
+        if not exec_mode:
+            # Check-only mode: defer the prompt — log and allow through
+            log_command(command, "ALLOWED_ASK_DEFERRED", ask_rule.get('reason', ''))
+            sys.exit(0)
         if not print_ask_message(ask_rule, command):
             log_command(command, "DENIED_BY_USER", ask_rule.get('reason', ''))
             sys.exit(1)
@@ -237,14 +245,16 @@ def main():
         # Not explicitly allowed, but not denied either
         log_command(command, "ALLOWED_DEFAULT", "No matching rule")
 
-    # Execute command
-    try:
-        result = subprocess.run(command, shell=True)
-        sys.exit(result.returncode)
-    except Exception as e:
-        print(f"❌ Execution error: {e}", file=sys.stderr)
-        log_command(command, "ERROR", str(e))
-        sys.exit(1)
+    # Execute command (only in exec mode)
+    if exec_mode:
+        try:
+            result = subprocess.run(command, shell=True)
+            sys.exit(result.returncode)
+        except Exception as e:
+            print(f"❌ Execution error: {e}", file=sys.stderr)
+            log_command(command, "ERROR", str(e))
+            sys.exit(1)
+    sys.exit(0)   # check-only: allowed, caller executes
 
 if __name__ == "__main__":
     main()

@@ -278,14 +278,35 @@ install_shell_wrapper() {
     local dir="$1"
     log_info "Setting up shell wrapper..."
 
+    # guard.sh = check-only validator (default, used by execwrap as pre-check)
     copy_template "$TEMPLATES_DIR/shell-wrapper/guard.sh" \
                   "$dir/.llmsec/guard.sh" \
                   ".llmsec/guard.sh"
     make_executable "$dir/.llmsec/guard.sh"
 
+    # guard-exec.sh = shell replacement that checks AND executes (use as $SHELL for AI tools)
+    if $DRY_RUN; then
+        log_dry "Create .llmsec/guard-exec.sh"
+    else
+        cat > "$dir/.llmsec/guard-exec.sh" << 'WRAPPER'
+#!/usr/bin/env bash
+# Shell replacement for AI tools — calls guard.sh in exec mode.
+# Use this as $SHELL when launching AI tools directly (without execwrap).
+# guard.sh alone is check-only (validator). This wrapper adds execution.
+exec "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/guard.sh" --exec "$@"
+WRAPPER
+        make_executable "$dir/.llmsec/guard-exec.sh"
+        FILES_CREATED=$((FILES_CREATED + 1))
+        log_ok "Created .llmsec/guard-exec.sh"
+    fi
+
     echo ""
-    log_info "To use the shell wrapper, launch your AI tool with:"
-    echo -e "  ${BOLD}SHELL=$dir/.llmsec/guard.sh <your-ai-tool>${NC}"
+    log_info "Shell wrapper installed:"
+    echo -e "  ${BOLD}.llmsec/guard.sh${NC}       — check-only validator (used by execwrap Layer 2)"
+    echo -e "  ${BOLD}.llmsec/guard-exec.sh${NC}  — shell replacement for direct AI tool use"
+    echo ""
+    log_info "To use as direct shell replacement, launch your AI tool with:"
+    echo -e "  ${BOLD}SHELL=$dir/.llmsec/guard-exec.sh <your-ai-tool>${NC}"
     echo ""
 }
 
